@@ -7,7 +7,7 @@
 
 char initalPrompt();
 void parseRequest(std::string request);
-void bus();
+void bus(const int coreNumber, const char action, const int blockNumber, const int blockLocation, const int writeValue);
 
 //GLOBAL - Array of Four CPU Cores
 Core* cores[4];
@@ -25,26 +25,19 @@ int main(){
     std::string userRequest;
 
     if(choice = 'M'){
-        std::cout << "Core Request works as follows,\n Core Number{0-3}, Operation{R/W}, Block{0-9}, Memory Location{0-3}, Write Value\n EX1: 0 R 3 0\n EX2: 2 W 0 1 2000\n EX3: 3 W 7 0 220\n\n";
+        std::cout << "Core Request works as follows,\n Core Number{0-3},Operation{R/W},Block{0-9},Memory Location{0-3},Write Value\n EX1: 0,R,3,0\n EX2: 2,W,0,1,2000\n EX3: 3,W,7,0,220\n\n";
         std::cout << "Enter Request: ";
-        std::cin >> userRequest; 
+        std::cin >> userRequest;
     }else{
         std::cout << "ADD FILE INPUT FOR SCRIPTED EVENT\N\N";
+        return 0;
     }
     
-    int cycleCounter = 0;
-    while(userRequest != "q" && userRequest != "Q" && userRequest != "quit" && userRequest != "Quit" && userRequest != "QUIT" && cycleCounter < 100){
-        std::cout << "Cycle " << cycleCounter << ": ";
-        
+    while(userRequest != "q" && userRequest != "Q" && userRequest != "quit" && userRequest != "Quit" && userRequest != "QUIT"){
         parseRequest(userRequest);
     
-        if(choice = 'M'){
-            std::cout << "Enter Request: ";
-            std::cin >> userRequest;
-        }else{
-            userRequest = "quit";
-        }
-        ++cycleCounter;
+        std::cout << "Enter Request: ";
+        std::cin >> userRequest;
     }
 }
 
@@ -66,28 +59,63 @@ char initalPrompt(){
 }
 
 void parseRequest(std::string request){
-    if(request[0] <= 4 && request[0] >= 0 && request.size() > 2){
-        int ID = request[0] - 48;//subtract 48 from a number character to get the number
-        request.erase(0,1);
+    if(request.size() < 7){std::cout << "*** Request Not Long Enough.\n"; return;}//break of request doesn't meet the minimum read request characters
+    int ID = -1;
+    if(request[0] - 48 <= 3 && request[0] - 48 >= 0){
+        ID = request[0] - 48;//subtract 48 from a number character to get the number
+        request.erase(0,2);
     }else{
-        std::cout << "Format incorrect.\n";
+        std::cout << "*** Core ID Format Invalid: " << request << "\n";
         return;
     }
 
-    if(request[0] == 'W' || request[0] == 'w' && request.size() > 2){
-        char action = 'W';
-    }else if (request[0] == 'R' || request[0] == 'r' && request.size() > 2){
-        char action = 'R';
+    if(request.size() < 5){std::cout << "*** Request Not Long Enough.\n"; return;}
+    char action = 'Z';
+    if(request[0] == 'W' || request[0] == 'w'){
+        action = 'W';
+        request.erase(0,2);
+    }else if (request[0] == 'R' || request[0] == 'r'){
+        action = 'R';
+        request.erase(0,2);
     }else{
-        std::cout << "Format incorrect.\n";
+        std::cout << "*** Action Format Invalid: " << request << "\n";
         return;
     }
 
-    //read in block num, drop space, read in location in block, drop space, IF WRITE read in value (muli digit values accepted.)
-    //sent information to bus and bus will use core methods
+    if(request.size() < 3){std::cout << "*** Request Not Long Enough.\n"; return;}
+    int blockNumber = -1;
+    if(request[0] >= 0 || request[0] <= 9){
+        blockNumber = request[0] - 48;
+        request.erase(0,2);
+    }else{
+        std::cout << "*** Block Number Format Invalid: " << request << "\n";
+        return;
+    }
 
+    if(request.size() == 0){std::cout << "*** Request Not Long Enough.\n"; return;}
+    int blockLocation = -1;
+    if(request[0] >= 0 || request[0] <= 3){
+        blockLocation = request[0] - 48;
+        request.erase(0,2);
+    }else{
+        std::cout << "*** Block Location Format Invalid: " << request << "\n";
+        return;
+    }
+
+    int value = -1;
+    if(action == 'W'){
+        value = std::stoi(request);
+    }else if(action == 'R'){
+        value = 0;
+    }else{
+        std::cout << "*** Write Value Format Invalid: " << request << "\n";
+        return;
+    }
+    
+    bus(ID, action, blockNumber, blockLocation, value);
 }
 
-void bus(){
+void bus(const int coreNumber, const char action, const int blockNumber, const int blockLocation, const int writeValue){
+    //std::cout << "User Input: " << coreNumber << ", " << action << ", "  << blockNumber << ", "  << blockLocation << ", "  << writeValue << ".\n";
     
 }
