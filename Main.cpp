@@ -8,6 +8,7 @@
 char initalPrompt();
 void parseRequest(std::string request);
 void bus(const int coreNumber, const char action, const int blockNumber, const int blockLocation, const int writeValue);
+bool checkForState(const int blockNumber, const char state);
 
 //GLOBAL - Array of Four CPU Cores
 Core* cores[4];
@@ -24,7 +25,7 @@ int main(){
 
     std::string userRequest;
 
-    if(choice = 'M'){
+    if(choice == 'M'){
         std::cout << "Core Request works as follows,\n Core Number{0-3},Operation{R/W},Block{0-9},Memory Location{0-3},Write Value\n EX1: 0,R,3,0\n EX2: 2,W,0,1,2000\n EX3: 3,W,7,0,220\n\n";
         std::cout << "Enter Request: ";
         std::cin >> userRequest;
@@ -47,19 +48,19 @@ char initalPrompt(){
     std::cin >> choice;
 
     if(choice == "M" || choice == "m"){
-        std::cout << "You chose to input manual opperations.\n\n";
+        std::cout << "You chose to input manual opperations. \n\n";
         return 'M';
     }else if(choice == "S" || choice == "s"){
-        std::cout << "You chose to use scripted input.\n\n";
+        std::cout << "You chose to use scripted input. \n\n";
         return 'S';
     }else{
-        std::cout << "Input invalid, the scripted input will be used by default.\n\n";
+        std::cout << "Input invalid, the scripted input will be used by default. \n\n";
         return 'S';
     }
 }
 
 void parseRequest(std::string request){
-    if(request.size() < 7){std::cout << "*** Request Not Long Enough.\n"; return;}//break of request doesn't meet the minimum read request characters
+    if(request.size() < 7){std::cout << "*** Request Not Long Enough. \n"; return;}//break of request doesn't meet the minimum read request characters
     int ID = -1;
     if(request[0] - 48 <= 3 && request[0] - 48 >= 0){
         ID = request[0] - 48;//subtract 48 from a number character to get the number
@@ -69,7 +70,7 @@ void parseRequest(std::string request){
         return;
     }
 
-    if(request.size() < 5){std::cout << "*** Request Not Long Enough.\n"; return;}
+    if(request.size() < 5){std::cout << "*** Request Not Long Enough. \n"; return;}
     char action = 'Z';
     if(request[0] == 'W' || request[0] == 'w'){
         action = 'W';
@@ -82,7 +83,7 @@ void parseRequest(std::string request){
         return;
     }
 
-    if(request.size() < 3){std::cout << "*** Request Not Long Enough.\n"; return;}
+    if(request.size() < 3){std::cout << "*** Request Not Long Enough. \n"; return;}
     int blockNumber = -1;
     if(request[0] >= 0 || request[0] <= 9){
         blockNumber = request[0] - 48;
@@ -92,7 +93,7 @@ void parseRequest(std::string request){
         return;
     }
 
-    if(request.size() == 0){std::cout << "*** Request Not Long Enough.\n"; return;}
+    if(request.size() == 0){std::cout << "*** Request Not Long Enough. \n"; return;}
     int blockLocation = -1;
     if(request[0] >= 0 || request[0] <= 3){
         blockLocation = request[0] - 48;
@@ -116,6 +117,36 @@ void parseRequest(std::string request){
 }
 
 void bus(const int coreNumber, const char action, const int blockNumber, const int blockLocation, const int writeValue){
-    //std::cout << "User Input: " << coreNumber << ", " << action << ", "  << blockNumber << ", "  << blockLocation << ", "  << writeValue << ".\n";
-    
+    if(action == 'R'){
+        if(cores[coreNumber]->getBlockID() == blockNumber){
+            // cores[coreNumber]->localRead(blockLocation);
+        }else if(checkForState(blockNumber, 'S') == true){
+            // cores[coreNumber]->changeState('S');
+            // cores[coreNumber]->requestMemory(blockNumber, blockLocation);
+            // cores[coreNumber]->localRead(blockLocation);
+        }else if(checkForState(blockNumber, 'E') == true || checkForState(blockNumber, 'M') == true){
+            // cores[coreNumber]->invalidate(blockNumber);
+            // cores[coreNumber]->requestMemory(blockNumber, blockLocation);
+            // cores[coreNumber]->localRead(blockLocation);
+        }else{
+            // cores[coreNumber]->requestMemory(blockNumber, blockLocation);
+            // cores[coreNumber]->localRead(blockLocation);
+        }
+    }else if(action == 'w'){
+        //check if block is in cashe
+        //if not
+        cores[coreNumber]->requestMemory(blockNumber, blockLocation);
+        cores[coreNumber]->localWrite(blockLocation, writeValue);
+    }else{
+        std::cout << " *** INVALID ACTION REQUEST ON BUS\n";
+    }
+}
+
+bool checkForState(const int blockNumber, const char state){
+    for(int index = 0; index < 4; ++index){
+        if(cores[index]->getState() == state){
+            return true;
+        }
+    }
+    return false;
 }
