@@ -9,11 +9,12 @@ char initalPrompt();
 void parseRequest(std::string request);
 void bus(const int coreNumber, const char action, const int blockNumber, const int blockLocation, const int writeValue);
 bool checkForState(const int blockNumber, const char state);
+void coreStatusUpdate();
+void invalidate(const int blockNumber);
+void switchToShared(const int blockNumber);
 
 //GLOBAL - Array of Four CPU Cores
 Core* cores[4];
-//GLOBAL - Array of Ten Blocks of Four Memory Locations
-int systemMemory[10][4] = {0};
 
 int main(){
     //Create all 4 cores and store them into the global cores array
@@ -26,11 +27,11 @@ int main(){
     std::string userRequest;
 
     if(choice == 'M'){
-        std::cout << "Core Request works as follows,\n Core Number{0-3},Operation{R/W},Block{0-9},Memory Location{0-3},Write Value\n EX1: 0,R,3,0\n EX2: 2,W,0,1,2000\n EX3: 3,W,7,0,220\n\n";
+        std::cout << "Core Request works as follows,\n Core Number{0-3},   Operation{R/W},   Block{0-9},   Memory Location{0-3},   Write Value{#}\n EX1: 0,R,3,0\n EX2: 2,W,0,1,2000\n EX3: 3,W,7,0,220\n\n";
         std::cout << "Enter Request: ";
         std::cin >> userRequest;
     }else{
-        std::cout << "ADD FILE INPUT FOR SCRIPTED EVENT\N\N";
+        std::cout << "ADD FILE INPUT FOR SCRIPTED EVENT\n\n";
         return 0;
     }
     
@@ -117,36 +118,97 @@ void parseRequest(std::string request){
 }
 
 void bus(const int coreNumber, const char action, const int blockNumber, const int blockLocation, const int writeValue){
-    if(action == 'R'){
-        if(cores[coreNumber]->getBlockID() == blockNumber){
-            // cores[coreNumber]->localRead(blockLocation);
-        }else if(checkForState(blockNumber, 'S') == true){
-            // cores[coreNumber]->changeState('S');
-            // cores[coreNumber]->requestMemory(blockNumber, blockLocation);
-            // cores[coreNumber]->localRead(blockLocation);
-        }else if(checkForState(blockNumber, 'E') == true || checkForState(blockNumber, 'M') == true){
-            // cores[coreNumber]->invalidate(blockNumber);
-            // cores[coreNumber]->requestMemory(blockNumber, blockLocation);
-            // cores[coreNumber]->localRead(blockLocation);
+    if(cores[coreNumber]->getBlockID() == blockNumber){
+        std::cout << "  ###   Block In Cashe Memory Already\n";
+        if(action == 'R'){
+            cores[coreNumber]->localRead(blockLocation);
         }else{
-            // cores[coreNumber]->requestMemory(blockNumber, blockLocation);
-            // cores[coreNumber]->localRead(blockLocation);
+            cores[coreNumber]->changeState('M');
+            //write new data to cashe
         }
-    }else if(action == 'w'){
-        //check if block is in cashe
-        //if not
+
+    }else if(checkForState(blockNumber, 'S') == true){
+        std::cout << "  ###   Block In Other Core's Cashes As Shared\n";
         cores[coreNumber]->requestMemory(blockNumber, blockLocation);
-        cores[coreNumber]->localWrite(blockLocation, writeValue);
+        if(action == 'R'){
+            cores[coreNumber]->changeState('S');
+            cores[coreNumber]->localRead(blockLocation);
+        }else{
+            invalidate(blockNumber);
+            cores[coreNumber]->changeState('M');
+            //write new data to cashe
+        }
+
+    }else if(checkForState(blockNumber, 'E') == true){
+        std::cout << "  ###   Block In Other Core Cashe As Exclusive\n";
+        if(action == 'R'){
+            switchToShared(blockNumber);
+            cores[coreNumber]->requestMemory(blockNumber, blockLocation);
+            cores[coreNumber]->changeState('S');
+            cores[coreNumber]->localRead(blockLocation);
+        }else{
+            invalidate(blockNumber);
+            cores[coreNumber]->changeState('M');
+            //write new data to cashe
+        }
+
+    }else if(checkForState(blockNumber, 'M') == true){
+        std::cout << "  ###   Block In Cashe Other Core Cashe As Modified\n";
+        invalidate(blockNumber);
+        cores[coreNumber]->requestMemory(blockNumber, blockLocation);
+        if(action == 'R'){
+            cores[coreNumber]->changeState('E');
+            cores[coreNumber]->localRead(blockLocation);
+        }else{
+            cores[coreNumber]->changeState('M');
+            //write new data to cashe
+        }
+
     }else{
-        std::cout << " *** INVALID ACTION REQUEST ON BUS\n";
+        std::cout << "  ###   Cashe Miss\n";
+        cores[coreNumber]->requestMemory(blockNumber, blockLocation);
+        if(action == 'R'){
+            cores[coreNumber]->changeState('E');
+            cores[coreNumber]->localRead(blockLocation);
+        }else{
+            cores[coreNumber]->changeState('M');
+            //write new data to cashe
+        }
     }
+
+    coreStatusUpdate();
 }
 
 bool checkForState(const int blockNumber, const char state){
     for(int index = 0; index < 4; ++index){
-        if(cores[index]->getState() == state){
+        if(cores[index]->getBlockID() == blockNumber && cores[index]->getState() == state){
             return true;
         }
     }
     return false;
+}
+
+void coreStatusUpdate(){
+    std::cout << "\n";
+    for(int index = 0; index < 4; ++index){
+        std::cout << " Core " << index << " Cashe Holds Block: " << cores[index]->getBlockID() << " and is in the " << cores[index]->getState() << " state.\n";
+    }
+    std::cout << "\n";
+}
+
+void invalidate(const int blockNumber){
+    for(int index = 0; index < 4; ++index){
+        if(cores[index]->getBlockID() == blockNumber){
+            cores[index]->changeState('I');
+            cores[index]->writeMemory();
+        }
+    }
+}
+
+void switchToShared(const int blockNumber){
+    for(int index = 0; index < 4; ++index){
+        if(cores[index]->getBlockID() == blockNumber){
+            cores[index]->changeState('S');
+        }
+    }
 }

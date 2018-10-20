@@ -9,6 +9,9 @@
 #ifndef CORE_H
 #define CORE_H
 
+//GLOBAL - Array of Ten Blocks of Four Memory Locations
+int systemMemory[10][4] = {0};
+
 class Core{
 public:
     Core();
@@ -16,11 +19,9 @@ public:
     Core(int ID, char state){coreID = ID; coreState = state;}
 
     void requestMemory(int blockID, int memoryID);
-    void writeMemory(int blockID, int memoryID);
-    void invalidate(int invalidBlockID);
+    void writeMemory();
     int localRead(int memoryID);
     void localWrite(int memoryID, int updatedValue);
-    void snoop();
 
     char getState();
     void changeState(char newState);
@@ -35,42 +36,39 @@ private:
 };
 
 void Core::requestMemory(int blockID, int memoryID){
-    std::cout << "Core " << coreID << " requesting memory from memory location location " << blockID << ".\n";
+    std::cout << "Core " << coreID << " requesting memory from block " << blockID << ", at location " << memoryID << ", that holds the value of " << systemMemory[blockID][memoryID] << ".\n";
+    casheBlockID = blockID;
+    cashe[0] = systemMemory[casheBlockID][0];
+    cashe[1] = systemMemory[casheBlockID][1];
+    cashe[2] = systemMemory[casheBlockID][2];
+    cashe[3] = systemMemory[casheBlockID][3];
 }
 
-void Core::writeMemory(int blockID, int memoryID){
-    if(coreState == 'M'){
-        std::cout << "Core " << coreID << " requesting memory from memory location location " << blockID << ".\n";
-    }else{
-        std::cout << "CORE NOT IN MODIFIED STATE, WRITE NOT ALLOWED.\N";
-    }
-}
-
-void Core::invalidate(int invalidBlockID){
-    std::cout << "Core " << coreID << " invalidating other cores with block " << ".\n";
+void Core::writeMemory(){
+    systemMemory[casheBlockID][0] = cashe[0];
+    systemMemory[casheBlockID][1] = cashe[1];
+    systemMemory[casheBlockID][2] = cashe[2];
+    systemMemory[casheBlockID][3] = cashe[3];
+    casheBlockID = -1;
 }
 
 int Core::localRead(int memoryID){
     if(memoryID >= 0 && memoryID <= 4){
-        std::cout << "Core " << coreID << " has performed a local write on block " << casheBlockID << ".\n";
+        std::cout << "Core " << coreID << " has performed a local read on block " << casheBlockID << ".\n";
         return cashe[memoryID];
     }else{
-        std::cout << "CORE " << coreID << "'S CASHE READ LOCATION " << memoryID << " IS INVALID.\n";
+        std::cout << " *** CORE " << coreID << "'S CASHE READ LOCATION " << memoryID << " IS INVALID.\n";
     }
     return 0;
 }
 
 void Core::localWrite(int memoryID, int updatedValue){
     if(memoryID >= 0 && memoryID <= 4){
+        std::cout << "Core " << coreID << " has performed a local write on block " << casheBlockID << ".\n";
         cashe[memoryID] = updatedValue;
     }else{
-        std::cout << "CORE " << coreID << "'S CASHE WRITE LOCATION " << memoryID << " IS INVALID.\n";
+        std::cout << " *** CORE " << coreID << "'S CASHE WRITE LOCATION " << memoryID << " IS INVALID.\n";
     }
-}
-
-void Core::snoop(){
-    std::cout << "Core " << coreID << " snooping on bus.\n";
-    std::cout << "Core " << coreID << "'s state is " << coreState << "\n";
 }
 
 char Core::getState(){
@@ -82,7 +80,7 @@ void Core::changeState(char newState){
 }
 
 int Core::getBlockID(){
-    return cahseBlockID;
+    return casheBlockID;
 }
 
 #endif
