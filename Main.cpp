@@ -1,7 +1,7 @@
 //Main function where IO and BUS functions will be placed
 //MESI Project, The goal in this project is to implement the MESI cache coherence protocol
 //Author: Kenneth Messner
-//Last Modified: 10/12/18
+//Last Modified: 10/21/18
 
 #include "Core.h"
 
@@ -25,21 +25,34 @@ int main(){
     char choice = initalPrompt();
 
     std::string userRequest;
+    std::ifstream infile("script.txt");
+
+    std::cout << "Core Request works as follows,\n Core Number{0-3},   Operation{R/W},   Block{0-9},   Memory Location{0-3},   Write Value{#}\n EX1: 0,R,3,0\n EX2: 2,W,0,1,2000\n EX3: 3,W,7,0,220\n\n";
 
     if(choice == 'M'){
-        std::cout << "Core Request works as follows,\n Core Number{0-3},   Operation{R/W},   Block{0-9},   Memory Location{0-3},   Write Value{#}\n EX1: 0,R,3,0\n EX2: 2,W,0,1,2000\n EX3: 3,W,7,0,220\n\n";
         std::cout << "Enter Request: ";
         std::cin >> userRequest;
-    }else{
-        std::cout << "ADD FILE INPUT FOR SCRIPTED EVENT\n\n";
-        return 0;
     }
     
     while(userRequest != "q" && userRequest != "Q" && userRequest != "quit" && userRequest != "Quit" && userRequest != "QUIT"){
-        parseRequest(userRequest);
+        if(choice == 'M'){
+            parseRequest(userRequest);
+            std::cout << "Enter Request: ";
+            std::cin >> userRequest;
+        }else{
+            if(!infile.eof()){
+                std::getline(infile, userRequest);
+            }else{
+                userRequest = "quit";
+            }
+            std::cout << "Request: " << userRequest << ".\n";
+            if(userRequest == "quit"){
+                break;
+            }
+            parseRequest(userRequest);
+        }
     
-        std::cout << "Enter Request: ";
-        std::cin >> userRequest;
+
     }
 }
 
@@ -67,11 +80,11 @@ void parseRequest(std::string request){
         ID = request[0] - 48;//subtract 48 from a number character to get the number
         request.erase(0,2);
     }else{
-        std::cout << "*** Core ID Format Invalid: " << request << "\n";
+        std::cout << "*** Core ID Format Invalid: " << request << "\n\n";
         return;
     }
 
-    if(request.size() < 5){std::cout << "*** Request Not Long Enough. \n"; return;}
+    if(request.size() < 5){std::cout << "*** Request Not Long Enough. \n\n"; return;}
     char action = 'Z';
     if(request[0] == 'W' || request[0] == 'w'){
         action = 'W';
@@ -80,7 +93,7 @@ void parseRequest(std::string request){
         action = 'R';
         request.erase(0,2);
     }else{
-        std::cout << "*** Action Format Invalid: " << request << "\n";
+        std::cout << "*** Action Format Invalid: " << request << "\n\n";
         return;
     }
 
@@ -90,17 +103,17 @@ void parseRequest(std::string request){
         blockNumber = request[0] - 48;
         request.erase(0,2);
     }else{
-        std::cout << "*** Block Number Format Invalid: " << request << "\n";
+        std::cout << "*** Block Number Format Invalid: " << request << "\n\n";
         return;
     }
 
-    if(request.size() == 0){std::cout << "*** Request Not Long Enough. \n"; return;}
+    if(request.size() == 0){std::cout << "*** Request Not Long Enough. \n\n"; return;}
     int blockLocation = -1;
     if(request[0] >= 0 || request[0] <= 3){
         blockLocation = request[0] - 48;
         request.erase(0,2);
     }else{
-        std::cout << "*** Block Location Format Invalid: " << request << "\n";
+        std::cout << "*** Block Location Format Invalid: " << request << "\n\n";
         return;
     }
 
@@ -110,7 +123,7 @@ void parseRequest(std::string request){
     }else if(action == 'R'){
         value = 0;
     }else{
-        std::cout << "*** Write Value Format Invalid: " << request << "\n";
+        std::cout << "*** Write Value Format Invalid: " << request << "\n\n";
         return;
     }
     
@@ -119,60 +132,72 @@ void parseRequest(std::string request){
 
 void bus(const int coreNumber, const char action, const int blockNumber, const int blockLocation, const int writeValue){
     if(cores[coreNumber]->getBlockID() == blockNumber){
-        std::cout << "  ###   Block In Cashe Memory Already\n";
+        std::cout << " Block In Cashe Already.\n";
         if(action == 'R'){
-            cores[coreNumber]->localRead(blockLocation);
-        }else{
-            cores[coreNumber]->changeState('M');
-            //write new data to cashe
-        }
-
-    }else if(checkForState(blockNumber, 'S') == true){
-        std::cout << "  ###   Block In Other Core's Cashes As Shared\n";
-        cores[coreNumber]->requestMemory(blockNumber, blockLocation);
-        if(action == 'R'){
-            cores[coreNumber]->changeState('S');
-            cores[coreNumber]->localRead(blockLocation);
+            std::cout << " Local Read: " << cores[coreNumber]->localRead(blockLocation) << ".\n";
         }else{
             invalidate(blockNumber);
             cores[coreNumber]->changeState('M');
-            //write new data to cashe
+            cores[coreNumber]->changeBlockID(blockNumber);
+            cores[coreNumber]->localWrite(blockLocation, writeValue);
+            std::cout << " Local Write: " << cores[coreNumber]->localRead(blockLocation) << " Was Written To Cashe Memory, Location " << blockLocation << ".\n";
+        }
+
+    }else if(checkForState(blockNumber, 'S') == true){
+        std::cout << " Block In Another Core's Cashes As Shared.\n";
+        cores[coreNumber]->requestMemory(blockNumber, blockLocation);
+        if(action == 'R'){
+            cores[coreNumber]->changeState('S');
+            std::cout << " Local Read: " << cores[coreNumber]->localRead(blockLocation) << ".\n";
+        }else{
+            invalidate(blockNumber);
+            cores[coreNumber]->changeState('M');
+            cores[coreNumber]->changeBlockID(blockNumber);
+            cores[coreNumber]->localWrite(blockLocation, writeValue);
+            std::cout << " Local Write: " << cores[coreNumber]->localRead(blockLocation) << " Was Written To Cashe Memory, Location " << blockLocation << ".\n";
         }
 
     }else if(checkForState(blockNumber, 'E') == true){
-        std::cout << "  ###   Block In Other Core Cashe As Exclusive\n";
+        std::cout << " Block In Another Core's Cashe As Exclusive, Change Both To Shared.\n";
         if(action == 'R'){
             switchToShared(blockNumber);
             cores[coreNumber]->requestMemory(blockNumber, blockLocation);
             cores[coreNumber]->changeState('S');
-            cores[coreNumber]->localRead(blockLocation);
+            std::cout << " Local Read: " << cores[coreNumber]->localRead(blockLocation) << ".\n";
         }else{
             invalidate(blockNumber);
+            cores[coreNumber]->changeBlockID(blockNumber);
             cores[coreNumber]->changeState('M');
-            //write new data to cashe
+            cores[coreNumber]->localWrite(blockLocation, writeValue);
+            std::cout << " Local Write: " << cores[coreNumber]->localRead(blockLocation) << " Was Written To Cashe Memory, Location " << blockLocation << ".\n";
         }
 
     }else if(checkForState(blockNumber, 'M') == true){
-        std::cout << "  ###   Block In Cashe Other Core Cashe As Modified\n";
+        std::cout << " Block In Another Core's Cashe As Modified, Invalidate Other Core.\n";
         invalidate(blockNumber);
+        std::cout << " Writing From Cashe To System Memory.\n";
+        cores[coreNumber]->changeBlockID(blockNumber);
         cores[coreNumber]->requestMemory(blockNumber, blockLocation);
         if(action == 'R'){
             cores[coreNumber]->changeState('E');
-            cores[coreNumber]->localRead(blockLocation);
+            std::cout << " Local Read: " << cores[coreNumber]->localRead(blockLocation) << ".\n";;
         }else{
             cores[coreNumber]->changeState('M');
-            //write new data to cashe
+            cores[coreNumber]->localWrite(blockLocation, writeValue);
+            std::cout << " Local Write: " << cores[coreNumber]->localRead(blockLocation) << " Was Written To Cashe Memory, Location " << blockLocation << ".\n";
         }
 
     }else{
-        std::cout << "  ###   Cashe Miss\n";
+        std::cout << " Data Needed From System Memory.\n";
         cores[coreNumber]->requestMemory(blockNumber, blockLocation);
         if(action == 'R'){
             cores[coreNumber]->changeState('E');
-            cores[coreNumber]->localRead(blockLocation);
+            std::cout << " Local Read: " << cores[coreNumber]->localRead(blockLocation) << ".\n";;
         }else{
             cores[coreNumber]->changeState('M');
-            //write new data to cashe
+            cores[coreNumber]->localWrite(blockLocation, writeValue);
+            std::cout << " Local Write: " << cores[coreNumber]->localRead(blockLocation) << " Was Written To Cashe Memory, Location " << blockLocation << ".\n";
+            cores[coreNumber]->writeMemory();
         }
     }
 
@@ -191,7 +216,15 @@ bool checkForState(const int blockNumber, const char state){
 void coreStatusUpdate(){
     std::cout << "\n";
     for(int index = 0; index < 4; ++index){
-        std::cout << " Core " << index << " Cashe Holds Block: " << cores[index]->getBlockID() << " and is in the " << cores[index]->getState() << " state.\n";
+        std::cout << " Core " << index << " Cashe Holds Block: ";
+
+        if(cores[index]->getBlockID() == -1){
+            std::cout << "X";
+        }else{
+            std::cout << cores[index]->getBlockID();
+        }
+
+        std::cout << " and is in the " << cores[index]->getState() << " state.\n";
     }
     std::cout << "\n";
 }

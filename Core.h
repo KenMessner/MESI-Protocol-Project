@@ -3,6 +3,8 @@
 //Author: Kenneth Messner
 //Last Modified: 10/12/18
 
+#include <fstream>
+#include <iostream>
 #include <iostream>
 #include <string>
 
@@ -26,6 +28,7 @@ public:
     char getState();
     void changeState(char newState);
     int getBlockID();
+    void changeBlockID(int newBlockID);
 
 private:
     int coreID;
@@ -36,7 +39,6 @@ private:
 };
 
 void Core::requestMemory(int blockID, int memoryID){
-    std::cout << "Core " << coreID << " requesting memory from block " << blockID << ", at location " << memoryID << ", that holds the value of " << systemMemory[blockID][memoryID] << ".\n";
     casheBlockID = blockID;
     cashe[0] = systemMemory[casheBlockID][0];
     cashe[1] = systemMemory[casheBlockID][1];
@@ -53,22 +55,11 @@ void Core::writeMemory(){
 }
 
 int Core::localRead(int memoryID){
-    if(memoryID >= 0 && memoryID <= 4){
-        std::cout << "Core " << coreID << " has performed a local read on block " << casheBlockID << ".\n";
         return cashe[memoryID];
-    }else{
-        std::cout << " *** CORE " << coreID << "'S CASHE READ LOCATION " << memoryID << " IS INVALID.\n";
-    }
-    return 0;
 }
 
 void Core::localWrite(int memoryID, int updatedValue){
-    if(memoryID >= 0 && memoryID <= 4){
-        std::cout << "Core " << coreID << " has performed a local write on block " << casheBlockID << ".\n";
-        cashe[memoryID] = updatedValue;
-    }else{
-        std::cout << " *** CORE " << coreID << "'S CASHE WRITE LOCATION " << memoryID << " IS INVALID.\n";
-    }
+    cashe[memoryID] = updatedValue;
 }
 
 char Core::getState(){
@@ -81,6 +72,10 @@ void Core::changeState(char newState){
 
 int Core::getBlockID(){
     return casheBlockID;
+}
+
+void Core::changeBlockID(int newBlockID){
+    casheBlockID = newBlockID;
 }
 
 #endif
